@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import json
+from sklearn.utils import resample
 
 
 # time new roman
@@ -260,6 +261,12 @@ class StatisticalAnalysis:
         with open('../data/performance_metrics.json', 'w') as f:
             json.dump(performance_metrics, f, indent=4)
 
+        # Perform bootstrap analysis for 95% confidence intervals
+        print("\n" + "="*60)
+        print("Starting Bootstrap Analysis for 95% Confidence Intervals")
+        print("="*60)
+        self.confidence_intervals = self.bootstrap_analysis(data, n_bootstrap=1000)
+
         return self
 
     def plot_confusion_matrix(self, ax, cm, classes, title, cmap):
@@ -380,13 +387,219 @@ class StatisticalAnalysis:
         plt.tight_layout()
         plt.savefig('../data/Combined_Performance_Metrics_Myocardial_Bridge_Noncalcified_Plaque.tif', dpi=600, pil_kwargs={'compression': 'tiff_lzw'})
 
+    def bootstrap_analysis(self, data: pd.DataFrame, n_bootstrap: int = 1000) -> dict:
+        """
+        Perform bootstrap analysis to calculate 95% confidence intervals for all metrics
         
+        Args:
+            data: Combined dataframe with AI and human annotations
+            n_bootstrap: Number of bootstrap samples (default: 1000)
+            
+        Returns:
+            Dictionary containing 95% confidence intervals for all metrics
+        """
+        print(f"Performing bootstrap analysis with {n_bootstrap} samples...")
+        
+        # Get unique grades for CAD-RADS and P grading
+        unique_cadrads = np.unique(data['stage_cadras'])
+        unique_p = np.unique(data['stage_p'])
+        
+        # Initialize bootstrap results storage
+        bootstrap_results = {
+            'cadrads': {},
+            'p_grading': {},
+            'myocardial_bridge': {'accuracy': [], 'sensitivity': [], 'specificity': [], 'f1score': []},
+            'noncalcified_plaque': {'accuracy': [], 'sensitivity': [], 'specificity': [], 'f1score': []}
+        }
+        
+        # Initialize storage for each CAD-RADS grade
+        for grade in unique_cadrads:
+            bootstrap_results['cadrads'][f'grade_{grade}'] = {
+                'accuracy': [], 'sensitivity': [], 'specificity': [], 'f1score': []
+            }
+        
+        # Initialize storage for each P grade
+        for grade in unique_p:
+            bootstrap_results['p_grading'][f'grade_{grade}'] = {
+                'accuracy': [], 'sensitivity': [], 'specificity': [], 'f1score': []
+            }
+        
+        # Progress tracking
+        for i in range(n_bootstrap):
+            if (i + 1) % 100 == 0:
+                print(f"Bootstrap iteration: {i + 1}/{n_bootstrap}")
+            
+            # Bootstrap resample with replacement
+            bootstrap_data = resample(data, random_state=i)
+            
+            # Calculate metrics for each CAD-RADS grade individually
+            for grade in unique_cadrads:
+                tp = bootstrap_data[(bootstrap_data['stage_cadras'] == grade) & (bootstrap_data['CAD-RADS'] == grade)].shape[0]
+                tn = bootstrap_data[(bootstrap_data['stage_cadras'] != grade) & (bootstrap_data['CAD-RADS'] != grade)].shape[0]
+                fp = bootstrap_data[(bootstrap_data['stage_cadras'] == grade) & (bootstrap_data['CAD-RADS'] != grade)].shape[0]
+                fn = bootstrap_data[(bootstrap_data['stage_cadras'] != grade) & (bootstrap_data['CAD-RADS'] == grade)].shape[0]
+                
+                # Calculate metrics for this specific grade
+                accuracy = (tp + tn) / (tp + tn + fp + fn) if (tp + tn + fp + fn) > 0 else 0
+                sensitivity = tp / (tp + fn) if (tp + fn) > 0 else 0
+                specificity = tn / (tn + fp) if (tn + fp) > 0 else 0
+                f1score = 2 * tp / (2 * tp + fp + fn) if (2 * tp + fp + fn) > 0 else 0
+                
+                # Store results for this grade
+                bootstrap_results['cadrads'][f'grade_{grade}']['accuracy'].append(accuracy)
+                bootstrap_results['cadrads'][f'grade_{grade}']['sensitivity'].append(sensitivity)
+                bootstrap_results['cadrads'][f'grade_{grade}']['specificity'].append(specificity)
+                bootstrap_results['cadrads'][f'grade_{grade}']['f1score'].append(f1score)
+            
+            # Calculate metrics for each P grade individually
+            for grade in unique_p:
+                tp = bootstrap_data[(bootstrap_data['stage_p'] == grade) & (bootstrap_data['P分级'] == grade)].shape[0]
+                tn = bootstrap_data[(bootstrap_data['stage_p'] != grade) & (bootstrap_data['P分级'] != grade)].shape[0]
+                fp = bootstrap_data[(bootstrap_data['stage_p'] == grade) & (bootstrap_data['P分级'] != grade)].shape[0]
+                fn = bootstrap_data[(bootstrap_data['stage_p'] != grade) & (bootstrap_data['P分级'] == grade)].shape[0]
+                
+                # Calculate metrics for this specific grade
+                accuracy = (tp + tn) / (tp + tn + fp + fn) if (tp + tn + fp + fn) > 0 else 0
+                sensitivity = tp / (tp + fn) if (tp + fn) > 0 else 0
+                specificity = tn / (tn + fp) if (tn + fp) > 0 else 0
+                f1score = 2 * tp / (2 * tp + fp + fn) if (2 * tp + fp + fn) > 0 else 0
+                
+                # Store results for this grade
+                bootstrap_results['p_grading'][f'grade_{grade}']['accuracy'].append(accuracy)
+                bootstrap_results['p_grading'][f'grade_{grade}']['sensitivity'].append(sensitivity)
+                bootstrap_results['p_grading'][f'grade_{grade}']['specificity'].append(specificity)
+                bootstrap_results['p_grading'][f'grade_{grade}']['f1score'].append(f1score)
+            
+            # Calculate metrics for myocardial bridge
+            tp_mb = bootstrap_data[(bootstrap_data['myocardial_bridge'] == '1.0') & (bootstrap_data['心肌桥            （主要血管存在=1，不存在=0）'] == '1')].shape[0]
+            tn_mb = bootstrap_data[(bootstrap_data['myocardial_bridge'] == '0.0') & (bootstrap_data['心肌桥            （主要血管存在=1，不存在=0）'] == '0')].shape[0]
+            fp_mb = bootstrap_data[(bootstrap_data['myocardial_bridge'] == '1.0') & (bootstrap_data['心肌桥            （主要血管存在=1，不存在=0）'] == '0')].shape[0]
+            fn_mb = bootstrap_data[(bootstrap_data['myocardial_bridge'] == '0.0') & (bootstrap_data['心肌桥            （主要血管存在=1，不存在=0）'] == '1')].shape[0]
+            
+            accuracy_mb = (tp_mb + tn_mb) / (tp_mb + tn_mb + fp_mb + fn_mb) if (tp_mb + tn_mb + fp_mb + fn_mb) > 0 else 0
+            sensitivity_mb = tp_mb / (tp_mb + fn_mb) if (tp_mb + fn_mb) > 0 else 0
+            specificity_mb = tn_mb / (tn_mb + fp_mb) if (tn_mb + fp_mb) > 0 else 0
+            f1score_mb = 2 * tp_mb / (2 * tp_mb + fp_mb + fn_mb) if (2 * tp_mb + fp_mb + fn_mb) > 0 else 0
+            
+            bootstrap_results['myocardial_bridge']['accuracy'].append(accuracy_mb)
+            bootstrap_results['myocardial_bridge']['sensitivity'].append(sensitivity_mb)
+            bootstrap_results['myocardial_bridge']['specificity'].append(specificity_mb)
+            bootstrap_results['myocardial_bridge']['f1score'].append(f1score_mb)
+            
+            # Calculate metrics for noncalcified plaque
+            tp_ncp = bootstrap_data[(bootstrap_data['noncalcified_plaque'] == '1.0') & (bootstrap_data['非钙化斑块         （存在=1，不存在=0）'] == '1')].shape[0]
+            tn_ncp = bootstrap_data[(bootstrap_data['noncalcified_plaque'] == '0.0') & (bootstrap_data['非钙化斑块         （存在=1，不存在=0）'] == '0')].shape[0]
+            fp_ncp = bootstrap_data[(bootstrap_data['noncalcified_plaque'] == '1.0') & (bootstrap_data['非钙化斑块         （存在=1，不存在=0）'] == '0')].shape[0]
+            fn_ncp = bootstrap_data[(bootstrap_data['noncalcified_plaque'] == '0.0') & (bootstrap_data['非钙化斑块         （存在=1，不存在=0）'] == '1')].shape[0]
+            
+            accuracy_ncp = (tp_ncp + tn_ncp) / (tp_ncp + tn_ncp + fp_ncp + fn_ncp) if (tp_ncp + tn_ncp + fp_ncp + fn_ncp) > 0 else 0
+            sensitivity_ncp = tp_ncp / (tp_ncp + fn_ncp) if (tp_ncp + fn_ncp) > 0 else 0
+            specificity_ncp = tn_ncp / (tn_ncp + fp_ncp) if (tn_ncp + fp_ncp) > 0 else 0
+            f1score_ncp = 2 * tp_ncp / (2 * tp_ncp + fp_ncp + fn_ncp) if (2 * tp_ncp + fp_ncp + fn_ncp) > 0 else 0
+            
+            bootstrap_results['noncalcified_plaque']['accuracy'].append(accuracy_ncp)
+            bootstrap_results['noncalcified_plaque']['sensitivity'].append(sensitivity_ncp)
+            bootstrap_results['noncalcified_plaque']['specificity'].append(specificity_ncp)
+            bootstrap_results['noncalcified_plaque']['f1score'].append(f1score_ncp)
+        
+        # Calculate 95% confidence intervals
+        confidence_intervals = {}
+        
+        # Process CAD-RADS grades
+        confidence_intervals['cadrads'] = {}
+        for grade_key in bootstrap_results['cadrads']:
+            confidence_intervals['cadrads'][grade_key] = {}
+            for metric in bootstrap_results['cadrads'][grade_key]:
+                values = bootstrap_results['cadrads'][grade_key][metric]
+                ci_lower = np.percentile(values, 2.5)
+                ci_upper = np.percentile(values, 97.5)
+                confidence_intervals['cadrads'][grade_key][metric] = {
+                    'lower': ci_lower,
+                    'upper': ci_upper,
+                    'mean': np.mean(values),
+                    'std': np.std(values)
+                }
+        
+        # Process P grades
+        confidence_intervals['p_grading'] = {}
+        for grade_key in bootstrap_results['p_grading']:
+            confidence_intervals['p_grading'][grade_key] = {}
+            for metric in bootstrap_results['p_grading'][grade_key]:
+                values = bootstrap_results['p_grading'][grade_key][metric]
+                ci_lower = np.percentile(values, 2.5)
+                ci_upper = np.percentile(values, 97.5)
+                confidence_intervals['p_grading'][grade_key][metric] = {
+                    'lower': ci_lower,
+                    'upper': ci_upper,
+                    'mean': np.mean(values),
+                    'std': np.std(values)
+                }
+        
+        # Process myocardial bridge and noncalcified plaque
+        for category in ['myocardial_bridge', 'noncalcified_plaque']:
+            confidence_intervals[category] = {}
+            for metric in bootstrap_results[category]:
+                values = bootstrap_results[category][metric]
+                ci_lower = np.percentile(values, 2.5)
+                ci_upper = np.percentile(values, 97.5)
+                confidence_intervals[category][metric] = {
+                    'lower': ci_lower,
+                    'upper': ci_upper,
+                    'mean': np.mean(values),
+                    'std': np.std(values)
+                }
+        
+        # Save confidence intervals to JSON file
+        with open('../data/confidence_intervals.json', 'w') as f:
+            json.dump(confidence_intervals, f, indent=4)
+        
+        # Print results
+        print("\n95% Confidence Intervals:")
+        print("=" * 70)
+        
+        # Print CAD-RADS results by grade
+        print("\nCAD-RADS GRADING:")
+        for grade_key in sorted(confidence_intervals['cadrads'].keys()):
+            grade_name = grade_key.replace('grade_', 'CAD-RADS ')
+            print(f"\n  {grade_name}:")
+            for metric in ['accuracy', 'sensitivity', 'specificity', 'f1score']:
+                ci = confidence_intervals['cadrads'][grade_key][metric]
+                print(f"    {metric.capitalize()}: {ci['mean']:.3f} (95% CI: {ci['lower']:.3f}-{ci['upper']:.3f})")
+        
+        # Print P grading results by grade
+        print("\nP GRADING:")
+        for grade_key in sorted(confidence_intervals['p_grading'].keys()):
+            grade_name = grade_key.replace('grade_', '')
+            print(f"\n  {grade_name}:")
+            for metric in ['accuracy', 'sensitivity', 'specificity', 'f1score']:
+                ci = confidence_intervals['p_grading'][grade_key][metric]
+                print(f"    {metric.capitalize()}: {ci['mean']:.3f} (95% CI: {ci['lower']:.3f}-{ci['upper']:.3f})")
+        
+        # Print other results
+        for category in ['myocardial_bridge', 'noncalcified_plaque']:
+            category_name = category.replace('_', ' ').title()
+            print(f"\n{category_name.upper()}:")
+            for metric in ['accuracy', 'sensitivity', 'specificity', 'f1score']:
+                ci = confidence_intervals[category][metric]
+                print(f"  {metric.capitalize()}: {ci['mean']:.3f} (95% CI: {ci['lower']:.3f}-{ci['upper']:.3f})")
+        
+        return confidence_intervals
 
 if __name__ == '__main__':
     file_ai = '../data/results.xlsx'
     file_human = '../data/金标准第一次评估1000例_v1.xlsx'
     ss = StatisticalAnalysis()
+    
+    # Perform statistical analysis including bootstrap confidence intervals
     ss.statistical_analysis(file_ai, file_human)
     
+    # Generate performance plots
     ss.plot_cadrads_and_p()
     ss.plot_myocardial_bridge_and_noncalcified_plaque()
+    
+    print("\nAnalysis completed! Results saved to:")
+    print("- Performance metrics: ../data/performance_metrics.json")
+    print("- 95% Confidence intervals: ../data/confidence_intervals.json")
+    print("- Confusion matrices plot: ../data/Combined_Confusion_Matrices.tif")
+    print("- Performance metrics plots: ../data/Combined_Performance_Metrics.tif")
+    print("- Additional metrics plot: ../data/Combined_Performance_Metrics_Myocardial_Bridge_Noncalcified_Plaque.tif")
