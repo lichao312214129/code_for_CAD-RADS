@@ -7,6 +7,8 @@ import json
 
 # time new roman
 plt.rcParams['font.family'] = 'Times New Roman'
+
+
 class StatisticalAnalysis:
 
     def __init__(self):
@@ -97,15 +99,15 @@ class StatisticalAnalysis:
         cm_noncalcified_plaque = pd.crosstab(data['noncalcified_plaque'], data['非钙化斑块         （存在=1，不存在=0）'], rownames=['AI'], colnames=['Human'])
         # 创建大图和子图
         fig, axs = plt.subplots(2, 2, figsize=(12, 10))
-        self.plot_confusion_matrix(axs[0, 0], cm_cadrads, classes=cm_cadrads.columns, title='Confusion Matrix of CAD-RADS', cmap='Oranges')
-        self.plot_confusion_matrix(axs[0, 1], cm_p, classes=cm_p.columns, title='Confusion Matrix of plaque burden', cmap='Oranges')
-        self.plot_confusion_matrix(axs[1, 0], cm_myocardial_bridge, classes=cm_myocardial_bridge.columns, title='Confusion Matrix of myocardial bridge', cmap='Oranges')
-        self.plot_confusion_matrix(axs[1, 1], cm_noncalcified_plaque, classes=cm_noncalcified_plaque.columns, title='Confusion Matrix of noncalcified plaque', cmap='Oranges')
+        self.plot_confusion_matrix(axs[0, 0], cm_cadrads, classes=cm_cadrads.columns, title='Confusion Matrix of CAD-RADS', cmap='Blues')
+        self.plot_confusion_matrix(axs[0, 1], cm_p, classes=cm_p.columns, title='Confusion Matrix of plaque burden', cmap='Blues')
+        self.plot_confusion_matrix(axs[1, 0], cm_myocardial_bridge, classes=cm_myocardial_bridge.columns, title='Confusion Matrix of myocardial bridge', cmap='Blues')
+        self.plot_confusion_matrix(axs[1, 1], cm_noncalcified_plaque, classes=cm_noncalcified_plaque.columns, title='Confusion Matrix of noncalcified plaque', cmap='Blues')
         # 间距
-        plt.subplots_adjust(hspace=0.5)
-        # 创建大图和子图
+        # plt.subplots_adjust(hspace=0.4, wspace=0.2)  # hspace: height space, wspace: width space
         plt.tight_layout()
-        plt.savefig('../data/Combined_Confusion_Matrices.tif', dpi=600, pil_kwargs={'compression': 'tiff_lzw'})
+        # 创建大图和子图
+        plt.savefig('../data/Combined_Confusion_Matrices.png', dpi=600, pil_kwargs={'compression': 'tiff_lzw'})
         plt.show()
 
         print(f"每个分级的数量（AI）：{data['stage_cadras'].value_counts()}")
@@ -346,10 +348,10 @@ class StatisticalAnalysis:
         # 间距调整
         plt.subplots_adjust(hspace=0.8)
         plt.tight_layout()
-        plt.savefig('../data/Combined_Performance_Metrics.tif', dpi=600, pil_kwargs={'compression': 'tiff_lzw'})
+        plt.savefig('../data/Combined_Performance_Metrics.png', dpi=600, pil_kwargs={'compression': 'tiff_lzw'})
         plt.show()
 
-    def plot_myocardial_bridge_and_noncalcified_plaque(self):
+    def plot_myocardial_bridge_and_noncalcified_plaque_v0(self):
         fig, axs = plt.subplots(1, 2, figsize=(8, 4))
         categories = ['Myocardial Bridge', 'Noncalcified Plaque']
         metrics = ['Accuracy', 'Sensitivity', 'Specificity', 'F1 Score']
@@ -378,9 +380,139 @@ class StatisticalAnalysis:
             axs[1].text(bar.get_x() + bar.get_width() / 2, yval, f'{yval:.2f}', ha='center', va='bottom', fontsize=10)
 
         plt.tight_layout()
-        plt.savefig('../data/Combined_Performance_Metrics_Myocardial_Bridge_Noncalcified_Plaque.tif', dpi=600, pil_kwargs={'compression': 'tiff_lzw'})
+        plt.savefig('../data/Combined_Performance_Metrics_Myocardial_Bridge_Noncalcified_Plaque.png', dpi=600, pil_kwargs={'compression': 'tiff_lzw'})
 
+    def plot_myocardial_bridge_and_noncalcified_plaque(self):
+        fig, axs = plt.subplots(2, 4, figsize=(8, 6))
+        metrics = ['Accuracy', 'Sensitivity', 'Specificity', 'F1 Score']
+        data1 = [self.accuracy_myocardial_bridge, self.sensitivity_myocardial_bridge, 
+                self.specificity_myocardial_bridge, self.f1score_myocardial_bridge]
+        data2 = [self.accuracy_noncalcified_plaque, self.sensitivity_noncalcified_plaque, 
+                self.specificity_noncalcified_plaque, self.f1score_noncalcified_plaque]
+
+        # 第一行：Myocardial Bridge的4个指标圈图
+        for i in range(4):
+            # 创建单个指标的数据：[指标值, 剩余值]
+            value = data1[i]
+            remaining = 1 - value
+            data = [value, remaining]
+            
+            # 绘制圈图
+            axs[0, i].pie(data,
+                        radius=0.9,
+                        wedgeprops={'width': 0.3, 'edgecolor': 'white'},
+                        startangle=90,
+                        autopct='',  
+                        colors=[sns.color_palette("husl", 4)[i], '#f0f0f0'])  # 使用灰色作为剩余部分
+
+            # 在圈中央添加百分比文本
+            axs[0, i].text(0, 0, f'{value*100:.1f}%', 
+                        ha='center', 
+                        va='center',
+                        fontsize=12,
+            )
+            # title和图像的间距
+            axs[0, i].set_title(f'Myocardial Bridge\n{metrics[i]}', pad=0)
+
+        # 第二行：Noncalcified Plaque的4个指标圈图
+        for i in range(4):
+            value = data2[i]
+            remaining = 1 - value
+            data = [value, remaining]
+            
+            axs[1, i].pie(data,
+                        radius=0.9,
+                        wedgeprops={'width': 0.3, 'edgecolor': 'white'},
+                        startangle=90,
+                        autopct='',  
+                        colors=[sns.color_palette("husl", 4)[i], '#f0f0f0'])
+
+            # 在圈中央添加百分比文本
+            axs[1, i].text(0, 0, f'{value*100:.1f}%', 
+                        ha='center', 
+                        va='center',
+                        fontsize=12,
+            )
+            axs[1, i].set_title(f'Noncalcified Plaque\n{metrics[i]}', pad=0)
+
+        # 间距
+        plt.tight_layout()
+        plt.subplots_adjust(hspace=0.15, wspace=-0.15)
+        plt.savefig('../data/Combined_Performance_Metrics_Myocardial_Bridge_Noncalcified_Plaque.png', dpi=600, pil_kwargs={'compression': 'tiff_lzw'})
+        plt.show()
+
+    def plot_performance_metrics(self):
+        """
+        使用雷达图展示性能指标
+        """
+        # 创建图形
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 5), subplot_kw={'projection': 'polar'})
         
+        def plot_radar(categories, metrics, data, title, ax):
+            # 计算角度
+            angles = np.linspace(0, 2*np.pi, len(categories), endpoint=False)
+            angles = np.concatenate((angles, [angles[0]]))  # 闭合图形
+            
+            # background color
+            ax.set_facecolor('green')
+            ax.patch.set_alpha(0.1)
+
+            # 设置角度刻度
+            ax.set_xticks(angles[:-1])
+            ax.set_xticklabels(categories, fontsize=12)
+            
+            # 设置径向刻度
+            ax.set_ylim(0, 1.1)
+            ax.set_rticks([0.2, 0.4, 0.6, 0.8, 1.0])
+            
+            # 绘制每个指标的线
+            colors = sns.color_palette("husl", len(metrics))
+            for idx, (metric, values) in enumerate(zip(metrics, data)):
+                values = np.concatenate((values, [values[0]]))  # 闭合数据
+                ax.plot(angles, values, '.-', linewidth=1, label=metric, color=colors[idx])
+                # ax.fill(angles, values, alpha=0.1)
+                
+                # # 添加数值标签
+                # for angle, value in zip(angles[:-1], values[:-1]):
+                #     ax.text(angle, value + 0.05, f'{value:.2f}', 
+                #         ha='center', va='center', fontsize=10)
+            
+            # 设置标题和图例
+            ax.set_title(title, pad=30, fontsize=15)
+            ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), 
+                    ncol=2, fontsize=10)
+            
+            # 设置网格样式
+            ax.grid(True, linestyle='--', alpha=0.7)
+            
+        # CAD-RADS 数据准备
+        cadrads_categories = ['CAD-RADS 0', 'CAD-RADS 1', 'CAD-RADS 2', 'CAD-RADS 3', 
+                            'CAD-RADS 4A', 'CAD-RADS 4B', 'CAD-RADS 5']
+        cadrads_metrics = ['Accuracy', 'Sensitivity', 'Specificity', 'F1 Score']
+        cadrads_data = [self.accuracy_cadrads, self.sensitivity_cadrads, 
+                        self.specificity_cadrads, self.f1score_cadrads]
+        
+        # P Categories 数据准备
+        p_categories = ['P0', 'P1', 'P2', 'P3', 'P4']
+        p_metrics = ['Accuracy', 'Sensitivity', 'Specificity', 'F1 Score']
+        p_data = [self.accuracy_p, self.sensitivity_p, 
+                self.specificity_p, self.f1score_p]
+        
+        # 绘制两个雷达图
+        plot_radar(cadrads_categories, cadrads_metrics, cadrads_data, 
+                'Performance Metrics\nAcross Different CAD-RADS Categories', ax1)
+        plot_radar(p_categories, p_metrics, p_data, 
+                'Performance Metrics\nAcross Different Plaque Burden Categories', ax2)
+        
+        # 调整布局
+        plt.tight_layout()
+        
+        # 保存图片
+        plt.savefig('../data/Combined_Performance_Metrics.png', 
+                    dpi=600, bbox_inches='tight', 
+                    pil_kwargs={'compression': 'tiff_lzw'})
+        plt.show()
+
 
 if __name__ == '__main__':
     file_ai = '../data/results.xlsx'
@@ -388,5 +520,6 @@ if __name__ == '__main__':
     ss = StatisticalAnalysis()
     ss.statistical_analysis(file_ai, file_human)
     
-    ss.plot_cadrads_and_p()
+    # ss.plot_cadrads_and_p()
+    ss.plot_performance_metrics()
     ss.plot_myocardial_bridge_and_noncalcified_plaque()

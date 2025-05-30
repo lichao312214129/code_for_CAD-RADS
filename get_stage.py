@@ -26,8 +26,6 @@ class Process:
         return data
 
     def extract_key_value(self, text, idx):
-        if 2485838 == idx:
-            print(text)
         target_keys = ["分段编号", "名称", "狭窄程度", "斑块类型", "是否存在心肌桥", "修饰符"]
         
         # 假设你的JSON文本存储在text变量中
@@ -111,8 +109,6 @@ class Process:
         # 把狭窄程度转换为数字
         value_pattern = r'\d+(?:\.\d+)?'
         for idx in segments.keys():
-            if 2485838 == idx:
-                print(segments[idx])
             for i in range(min(len(segments[idx]), 18)):
                 
                 # # 如果字符串包含非数字，则打印
@@ -201,11 +197,9 @@ class Process:
                 if not str(key).isdigit():
                     print(idx, key)
 
-        stage_cadras = {}
+        stage_CADRADS = {}
         sis = {}  # 有多少条血管的"斑块类型"不为"无"或者""
         for idx in result_stenosis.keys():
-            if 2622255 == idx:
-                print(result_stenosis[idx])
             # 获取所有的斑块类型
             type_of_plaque = [segments[idx][i].get('斑块类型', '') for i in range(len(segments[idx]))]
             # 用re.findall找到type_of_plaque中有多少个无或者''
@@ -217,47 +211,47 @@ class Process:
 
             # 一个患者只要有任何一条血管的狭窄程度是1，就是CADRADS 5
             if 1 in result_stenosis[idx].values():
-                stage_cadras[idx] = '5'
+                stage_CADRADS[idx] = '5'
                 print(f'{idx} is CADRADS 5')
-            # 一个患者只要有编号为5的血管的狭窄程度是大于等于0.5，或者((1 or 2or 3) and (6 or 7 or 8) and (11 or 13))都是大于等于0.7，就是CADRADS 4b
+            # 一个患者只要有编号为5的血管的狭窄程度是大于等于0.5，或者((1 or 2 or 3) and (6 or 7 or 8) and (11 or 13))都是大于等于0.7，就是CADRADS 4b
             elif result_stenosis[idx].get('5', 0) >= 0.5 or (
                 (result_stenosis[idx].get('1', 0) >= 0.7 or result_stenosis[idx].get('2', 0) >= 0.7 or result_stenosis[idx].get('3', 0) >= 0.7) and
                 (result_stenosis[idx].get('6', 0) >= 0.7 or result_stenosis[idx].get('7', 0) >= 0.7 or result_stenosis[idx].get('8', 0) >= 0.7) and
                 (result_stenosis[idx].get('11', 0) >= 0.7 or result_stenosis[idx].get('13', 0) >= 0.7)
             ):
-                stage_cadras[idx] = '4b'
+                stage_CADRADS[idx] = '4b'
                 print(f'{idx} is CADRADS 4b')
             # 一个患者只要有任何一条或两条血管的狭窄程度在0.7-0.99之间，就是CADRADS 4a
             elif any([0.7 <= value < 1 for value in result_stenosis[idx].values()]):
-                stage_cadras[idx] = '4a'
+                stage_CADRADS[idx] = '4a'
                 print(f'{idx} is CADRADS 4a')
             # 一个患者只要有任何一条血管的狭窄程度在0.5-0.69之间，就是CADRADS 3
             elif any([0.5 <= value < 0.7 for value in result_stenosis[idx].values()]):
-                stage_cadras[idx] = '3'
+                stage_CADRADS[idx] = '3'
                 print(f'{idx} is CADRADS 3')
             # 一个患者只要有任何一条血管的狭窄程度在0.25-0.49之间，就是CADRADS 2
             elif any([0.25 <= value < 0.5 for value in result_stenosis[idx].values()]):
-                stage_cadras[idx] = '2'
+                stage_CADRADS[idx] = '2'
                 print(f'{idx} is CADRADS 2')
             # 一个患者只要有任何一条血管的狭窄程度在0.1-0.24之间，就是CADRADS 1
             elif any([0.1 <= value < 0.25 for value in result_stenosis[idx].values()]):
-                stage_cadras[idx] = '1'
+                stage_CADRADS[idx] = '1'
                 print(f'{idx} is CADRADS 1')
             # 如果有任何一条血管有斑块，但是管腔无明显狭窄，也记做CAD RADS-1
             elif sis[idx] > 0:
-                stage_cadras[idx] = '1'
+                stage_CADRADS[idx] = '1'
                 print(f'{idx} is CADRADS 1')
             # 一个患者所有血管的狭窄程度都是0，就是CADRADS 0
             elif all([value == 0 for value in result_stenosis[idx].values()]):
-                stage_cadras[idx] = '0'
+                stage_CADRADS[idx] = '0'
                 print(f'{idx} is CADRADS 0')
             # 如果以上都不满足，则是CADRADS N
             else:
-                stage_cadras[idx] = 'N'
+                stage_CADRADS[idx] = 'N'
                 print(f'{idx} is CADRADS N')
 
         # 打印多少个CADRADS分级
-        print(pd.Series(stage_cadras).value_counts())
+        print(pd.Series(stage_CADRADS).value_counts())
 
         # 根据sis计算p分级：sis=0,为p0， 小于等于2为p1，sis3-4为p2，sis5-7为p3，sis大于等于8为p4
         stage_p = {}
@@ -286,7 +280,7 @@ class Process:
         # 提取非钙化斑块信息
         noncalcified_plaque = self.extract_noncalcified_plaque(segments)
 
-        return stage_cadras, sis, stage_p, myocardial_bridge, noncalcified_plaque
+        return stage_CADRADS, sis, stage_p, myocardial_bridge, noncalcified_plaque
 
     # 写一个函数提取心肌桥信息
     def extract_myocardial_bridge(self, segments):
@@ -346,11 +340,11 @@ class Process:
         """
         data = self.read_data(file)
         segments, coronary_artery_dominance, coronary_artery_abnormal = self.extract(data)
-        stage_cadras, sis, stage_p, myocardial_bridge, noncalcified_plaque = self.get_stage(segments)
+        stage_CADRADS, sis, stage_p, myocardial_bridge, noncalcified_plaque = self.get_stage(segments)
         result = {
             'coronary_artery_dominance': coronary_artery_dominance,
             'coronary_artery_abnormal': coronary_artery_abnormal,
-            'stage_cadras': stage_cadras,
+            'stage_CADRADS': stage_CADRADS,
             'sis': sis,
             'stage_p': stage_p,
             'myocardial_bridge': myocardial_bridge,
