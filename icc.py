@@ -6,8 +6,8 @@ import re
 warnings.filterwarnings("ignore")
 
 
-file1 = r'F:\work\research\chenYouMei\data\金标准第一次评估1000例_v1.xlsx'
-file2 = r'F:\work\research\chenYouMei\data\金标准二次评估200例.xlsx'
+file1 = your_file1
+file2 = your_file2
 
 data1 = pd.read_excel(file1)
 data2 = pd.read_excel(file2, sheet_name='Sheet2')

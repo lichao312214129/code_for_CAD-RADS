@@ -586,8 +586,8 @@ class StatisticalAnalysis:
         return confidence_intervals
 
 if __name__ == '__main__':
-    file_ai = '../data/results.xlsx'
-    file_human = '../data/金标准第一次评估1000例_v1.xlsx'
+    file_ai = your_file_ai
+    file_human = your_file_human
     ss = StatisticalAnalysis()
     
     # Perform statistical analysis including bootstrap confidence intervals
